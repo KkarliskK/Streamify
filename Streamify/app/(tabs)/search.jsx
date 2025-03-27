@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useLibrary } from '@/src/utils/LibraryContext';
 import { 
   View, 
   TextInput, 
@@ -11,7 +12,9 @@ import {
   Alert,
   Dimensions,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView,
+  Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,6 +74,17 @@ export default function SearchScreen() {
   const [searchHistory, setSearchHistory] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchInputPosition, setSearchInputPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
+
+  const { 
+    likedSongs, 
+    likeSong, 
+    albums,
+    addSongToAlbum 
+  } = useLibrary();
+
+  const [selectedSongForAlbum, setSelectedSongForAlbum] = useState(null);
+
+  const isLiked = (song) => likedSongs.some(s => s.id === song.id);
 
   useEffect(() => {
     loadSearchHistory();
@@ -190,6 +204,43 @@ export default function SearchScreen() {
     }
   };
 
+  const renderAlbumSelectionModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={selectedSongForAlbum !== null}
+      onRequestClose={() => setSelectedSongForAlbum(null)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <ThemedText style={styles.modalTitle}>Add to Album</ThemedText>
+          <ScrollView>
+            {albums.map((album) => (
+              <TouchableOpacity
+                key={album.id}
+                style={styles.albumSelectionItem}
+                onPress={() => {
+                  addSongToAlbum(album.id, selectedSongForAlbum);
+                  setSelectedSongForAlbum(null);
+                }}
+              >
+                <ThemedText style={styles.albumSelectionText}>
+                  {album.name}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setSelectedSongForAlbum(null)}
+          >
+            <ThemedText style={styles.modalCancelText}>Cancel</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderCategoryItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.categoryItem}
@@ -230,11 +281,29 @@ export default function SearchScreen() {
           {item.artist}
         </ThemedText>
       </View>
-      <Ionicons 
-        name={currentlyPlaying?.id === item.id ? "pause" : "play"} 
-        size={24} 
-        color="white" 
-      />
+      <View style={styles.resultActionContainer}>
+        <TouchableOpacity 
+          onPress={() => likeSong(item)}
+          style={styles.actionButton}
+        >
+          <Ionicons 
+            name={isLiked(item) ? "heart" : "heart-outline"} 
+            size={24} 
+            color={isLiked(item) ? "red" : "white"} 
+          />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={() => setSelectedSongForAlbum(item)}
+          style={styles.actionButton}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+        <Ionicons 
+          name={currentlyPlaying?.id === item.id ? "pause" : "play"} 
+          size={24} 
+          color="white" 
+        />
+      </View>
     </TouchableOpacity>
   );
 
@@ -376,7 +445,9 @@ export default function SearchScreen() {
           />
         )}
       </LinearGradient>
+      {renderAlbumSelectionModal()} 
     </KeyboardAvoidingView>
+    
   );
 }
 
@@ -532,5 +603,51 @@ const styles = StyleSheet.create({
   },
   removeHistoryItemButton: {
     marginLeft: 10,
+  },
+  resultActionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    marginHorizontal: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#1D2B3A',
+    borderRadius: 15,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  albumSelectionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  albumSelectionText: {
+    color: 'white',
+    textAlign: 'center',
+  },
+  modalCancelButton: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: 'white',
   },
 });

@@ -1,121 +1,294 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   ScrollView, 
   TouchableOpacity, 
   Image, 
-  StyleSheet 
+  StyleSheet,
+  Modal,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
+import { useLibrary } from '@/src/utils/LibraryContext';
 
 export default function LibraryScreen() {
-  const playlists = [
-    { 
-      id: 1, 
-      title: 'Favorite Songs', 
-      trackCount: 45,
-      cover: require('@/assets/images/react-logo.png')
-    },
-    { 
-      id: 2, 
-      title: 'Workout Mix', 
-      trackCount: 32,
-      cover: require('@/assets/images/react-logo.png')
-    },
-    { 
-      id: 3, 
-      title: 'Chill Vibes', 
-      trackCount: 28,
-      cover: require('@/assets/images/react-logo.png')
-    }
-  ];
+  const { 
+    likedSongs, 
+    albums, 
+    createAlbum, 
+    removeAlbum,
+    likeSong 
+  } = useLibrary();
 
-  return (
-    <LinearGradient
-      colors={['#1D2B3A', '#0F1624']}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>My Library</ThemedText>
-        <TouchableOpacity>
+  const [isCreateAlbumModalVisible, setIsCreateAlbumModalVisible] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState('');
+
+  const handleCreateAlbum = async () => {
+    if (newAlbumName.trim() === '') {
+      Alert.alert('Invalid Album Name', 'Please enter a name for the album');
+      return;
+    }
+
+    await createAlbum(newAlbumName);
+    setNewAlbumName('');
+    setIsCreateAlbumModalVisible(false);
+  };
+
+  const renderLikedSongsSection = () => (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Liked Songs</ThemedText>
+        <ThemedText style={styles.sectionSubtitle}>
+          {likedSongs.length} Songs
+        </ThemedText>
+      </View>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.horizontalScroll}
+      >
+        {likedSongs.map((song) => (
+          <TouchableOpacity key={song.id} style={styles.likedSongItem}>
+            <Image 
+              source={{ uri: song.thumbnail }} 
+              style={styles.likedSongCover} 
+            />
+            <ThemedText style={styles.likedSongTitle} numberOfLines={1}>
+              {song.title}
+            </ThemedText>
+            <ThemedText style={styles.likedSongArtist} numberOfLines={1}>
+              {song.artist}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderAlbumsSection = () => (
+    <View style={styles.sectionContainer}>
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionTitle}>My Albums</ThemedText>
+        <TouchableOpacity onPress={() => setIsCreateAlbumModalVisible(true)}>
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
       </View>
+      {albums.map((album) => (
+        <TouchableOpacity 
+          key={album.id} 
+          style={styles.albumItem}
+        >
+          <Image 
+            source={
+              album.songs.length > 0 
+                ? { uri: album.songs[0].thumbnail } 
+                : require('@/assets/images/react-logo.png')
+            } 
+            style={styles.albumCover} 
+          />
+          <View style={styles.albumInfo}>
+            <ThemedText style={styles.albumTitle}>
+              {album.name}
+            </ThemedText>
+            <ThemedText style={styles.albumTracks}>
+              {album.songs.length} Tracks
+            </ThemedText>
+          </View>
+          <TouchableOpacity 
+            onPress={() => removeAlbum(album.id)}
+            style={styles.deleteAlbumButton}
+          >
+            <Ionicons name="trash" size={20} color="red" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 
-      <ScrollView style={styles.contentContainer}>
-        <View style={styles.sectionContainer}>
-          <ThemedText style={styles.sectionTitle}>Playlists</ThemedText>
-          {playlists.map((playlist) => (
-            <TouchableOpacity key={playlist.id} style={styles.playlistItem}>
-              <Image source={playlist.cover} style={styles.playlistCover} />
-              <View style={styles.playlistInfo}>
-                <ThemedText style={styles.playlistTitle}>
-                  {playlist.title}
-                </ThemedText>
-                <ThemedText style={styles.playlistTracks}>
-                  {playlist.trackCount} Tracks
-                </ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="white" />
+  const renderCreateAlbumModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isCreateAlbumModalVisible}
+      onRequestClose={() => setIsCreateAlbumModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <ThemedText style={styles.modalTitle}>Create New Album</ThemedText>
+          <TextInput
+            style={styles.albumNameInput}
+            placeholder="Enter album name"
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={newAlbumName}
+            onChangeText={setNewAlbumName}
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity 
+              style={styles.modalCancelButton}
+              onPress={() => setIsCreateAlbumModalVisible(false)}
+            >
+              <ThemedText style={styles.modalCancelText}>Cancel</ThemedText>
             </TouchableOpacity>
-          ))}
+            <TouchableOpacity 
+              style={styles.modalCreateButton}
+              onPress={handleCreateAlbum}
+            >
+              <ThemedText style={styles.modalCreateText}>Create</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
+      </View>
+    </Modal>
+  );
+
+  return (
+    <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+        >
+      <LinearGradient
+        colors={['#1D2B3A', '#0F1624']}
+        style={styles.container}
+      >
+      <ScrollView style={styles.contentContainer}>
+        {renderLikedSongsSection()}
+        {renderAlbumsSection()}
       </ScrollView>
-    </LinearGradient>
+      {renderCreateAlbumModal()}
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Existing styles from the previous library screen...
   container: {
     flex: 1,
     paddingTop: 50,
   },
-  header: {
+  sectionContainer: {
+    marginBottom: 30,
+    MarginLeft: 10,
+    marginRight: 10,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
     marginBottom: 20,
+    marginLeft: 10,
+    marginRight: 10,
   },
-  headerTitle: {
+  likedSongItem: {
+    marginRight: 15,
+    width: 150,
+    paddingLeft: 10,
+  },
+  likedSongCover: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+  },
+  likedSongTitle: {
     color: 'white',
-    fontSize: 24,
+    marginTop: 10,
     fontWeight: 'bold',
   },
-  contentContainer: {
-    paddingHorizontal: 20,
+  likedSongArtist: {
+    color: 'rgba(255,255,255,0.7)',
   },
-  sectionContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  playlistItem: {
+  albumItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    padding: 10,
+    marginLeft: 10,
   },
-  playlistCover: {
+  albumCover: {
     width: 60,
     height: 60,
     borderRadius: 10,
     marginRight: 15,
   },
-  playlistInfo: {
+  albumInfo: {
     flex: 1,
   },
-  playlistTitle: {
+  albumTitle: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  playlistTracks: {
+  albumTracks: {
     color: 'rgba(255,255,255,0.7)',
   },
+  deleteAlbumButton: {
+    padding: 10,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#1D2B3A',
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  albumNameInput: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalCancelButton: {
+    flex: 1,
+    marginRight: 10,
+    padding: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCreateButton: {
+    flex: 1,
+    padding: 15,
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: 'white',
+  },
+  modalCreateText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
 });

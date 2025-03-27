@@ -1,55 +1,176 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   View, 
   TextInput, 
   FlatList, 
   TouchableOpacity, 
   Image, 
+  ImageBackground,
   StyleSheet,
   ActivityIndicator,
-  Alert
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import SoundCloudMusicService from '@/src/utils/soundcloudMusicService';
 import MusicPlayerService from '@/src/utils/soundcloudMusicPlayerService';
 
+const QUICK_SEARCH_CATEGORIES = [
+  { 
+    id: 'pop', 
+    name: 'Pop', 
+    image: 'https://images.unsplash.com/photo-1512830414785-9928e23475dc?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+  { 
+    id: 'hip-hop', 
+    name: 'Hip Hop', 
+    image: 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+  { 
+    id: 'electronic', 
+    name: 'Electronic', 
+    image: 'https://images.unsplash.com/photo-1624703307604-744ec383cbf4?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+  { 
+    id: 'indie', 
+    name: 'Indie', 
+    image: 'https://plus.unsplash.com/premium_photo-1661377339902-4aae67410d8b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+  { 
+    id: 'rock', 
+    name: 'Rock', 
+    image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+  { 
+    id: 'mood', 
+    name: 'Mood', 
+    image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80' 
+  },
+  { 
+    id: 'rap', 
+    name: 'Rap', 
+    image: 'https://images.unsplash.com/photo-1541788968749-7683d395688d?q=80&w=1287&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' 
+  },
+];
+
+const { width } = Dimensions.get('window');
+
+const SEARCH_HISTORY_KEY = 'MUSIC_SEARCH_HISTORY';
+const MAX_SEARCH_HISTORY = 10;
+
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+  const [searchHistory, setSearchHistory] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchInputPosition, setSearchInputPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
-  const performSearch = async () => {
-    if (searchQuery.trim() === '') return;
+  useEffect(() => {
+    loadSearchHistory();
+  }, []);
+
+  const loadSearchHistory = async () => {
+    try {
+      const storedHistory = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+      if (storedHistory) {
+        setSearchHistory(JSON.parse(storedHistory));
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
+    }
+  };
+
+  const saveSearchToHistory = async (query) => {
+    try {
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) return;
+
+      let updatedHistory = [
+        trimmedQuery,
+        ...searchHistory.filter(item => item !== trimmedQuery)
+      ];
+
+      updatedHistory = updatedHistory.slice(0, MAX_SEARCH_HISTORY);
+
+      setSearchHistory(updatedHistory);
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
+    } catch (error) {
+      console.error('Error saving search history:', error);
+    }
+  };
+
+  const removeHistoryItem = async (itemToRemove) => {
+    try {
+      const updatedHistory = searchHistory.filter(item => item !== itemToRemove);
+      setSearchHistory(updatedHistory);
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
+    } catch (error) {
+      console.error('Error removing history item:', error);
+    }
+  };
+
+  const clearSearchHistory = async () => {
+    try {
+      setSearchHistory([]);
+      await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+    } catch (error) {
+      console.error('Error clearing search history:', error);
+    }
+  };
+
+  const performSearch = async (query) => {
+    if (query.trim() === '') {
+      setSearchResults([]);
+      return;
+    }
     
     setIsLoading(true);
     try {
-      const results = await SoundCloudMusicService.searchSongs(searchQuery);
+      const results = await SoundCloudMusicService.searchSongs(query);
       
       if (results.length === 0) {
         Alert.alert('No Results', 'No tracks found for your search.');
       }
       
+      await saveSearchToHistory(query);
+      
       setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
-      Alert.alert('Search Error', 'Unable to perform search. Check your connection or try a different query.', [
-        { 
-          text: 'OK', 
-          style: 'cancel' 
-        },
-        { 
-          text: 'More Info', 
-          onPress: () => Alert.alert('Error Details', error.message) 
-        }
-      ]);
+      Alert.alert('Search Error', 'Unable to perform search. Check your connection or try a different query.');
     } finally {
       setIsLoading(false);
+      setIsSearchFocused(false);
     }
   };
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim() !== '') {
+      performSearch(searchQuery);
+    }
+  };
+
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+  };
   
+  const handleCategorySearch = (category) => {
+    setSearchQuery(category);
+    performSearch(category);
+  };
+
+  const handleHistoryItemPress = (historyItem) => {
+    setSearchQuery(historyItem);
+    performSearch(historyItem);
+  };
+
   const handlePlayPause = async (item) => {
     try {
       if (currentlyPlaying?.id === item.id) {
@@ -57,7 +178,7 @@ export default function SearchScreen() {
         setCurrentlyPlaying(null);
       } else {
         if (!item.fullTrackUrl) {
-          Alert.alert('Playback Error', 'No stream URL available for this track. Try another track.');
+          Alert.alert('Playback Error', 'No stream URL available for this track.');
           return;
         }
         await MusicPlayerService.playStream(item.fullTrackUrl, item);
@@ -65,22 +186,31 @@ export default function SearchScreen() {
       }
     } catch (error) {
       console.error('Playback error:', error);
-      Alert.alert(
-        'Playback Error', 
-        'Could not play the track. This might be due to streaming restrictions or network issues.',
-        [
-          { 
-            text: 'OK', 
-            style: 'cancel' 
-          },
-          { 
-            text: 'View Details', 
-            onPress: () => Alert.alert('Error Details', error.message) 
-          }
-        ]
-      );
+      Alert.alert('Playback Error', 'Could not play the track.');
     }
   };
+
+  const renderCategoryItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.categoryItem}
+      onPress={() => handleCategorySearch(item.name)}
+    >
+      <ImageBackground 
+        source={{ uri: item.image }}
+        style={styles.categoryImage}
+        imageStyle={styles.categoryImageStyle}
+      >
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          style={styles.categoryTextOverlay}
+        >
+          <ThemedText style={styles.categoryText}>
+            {item.name}
+          </ThemedText>
+        </LinearGradient>
+      </ImageBackground>
+    </TouchableOpacity>
+  );
 
   const renderSearchResult = ({ item }) => (
     <TouchableOpacity 
@@ -90,6 +220,7 @@ export default function SearchScreen() {
       <Image 
         source={{ uri: item.thumbnail }} 
         style={styles.resultThumbnail} 
+        blurRadius={currentlyPlaying?.id === item.id ? 5 : 0}
       />
       <View style={styles.resultTextContainer}>
         <ThemedText style={styles.resultTitle} numberOfLines={1}>
@@ -107,47 +238,145 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
+  const renderSearchHistoryDropdown = () => {
+    if (!isSearchFocused || searchHistory.length === 0) return null;
+
+    return (
+      <View 
+        style={[
+          styles.searchHistoryDropdown, 
+          { 
+            top: searchInputPosition.y + searchInputPosition.height,
+            left: searchInputPosition.x,
+            width: searchInputPosition.width 
+          }
+        ]}
+      >
+        <View style={styles.searchHistoryHeader}>
+          <ThemedText style={styles.searchHistoryTitle}>Recent Searches</ThemedText>
+          <TouchableOpacity onPress={clearSearchHistory}>
+            <ThemedText style={styles.clearHistoryText}>Clear</ThemedText>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={searchHistory}
+          renderItem={({ item }) => (
+            <TouchableOpacity 
+              style={styles.historyDropdownItem}
+              onPress={() => handleHistoryItemPress(item)}
+            >
+              <Ionicons name="time" size={18} color="white" style={styles.historyItemIcon} />
+              <ThemedText style={styles.historyDropdownItemText} numberOfLines={1}>
+                {item}
+              </ThemedText>
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  removeHistoryItem(item);
+                }}
+                style={styles.removeHistoryItemButton}
+              >
+                <Ionicons name="close" size={18} color="white" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item}
+          style={styles.searchHistoryList}
+        />
+      </View>
+    );
+  };
+
   return (
-    <LinearGradient
-      colors={['#1D2B3A', '#0F1624']}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for songs, artists"
-          placeholderTextColor="rgba(255,255,255,0.5)"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={performSearch}
-        />
-        <TouchableOpacity style={styles.searchButton} onPress={performSearch}>
-          <Ionicons name="search" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+        colors={['#1D2B3A', '#0F1624']}
+        style={styles.container}
+      >
+        <View 
+          style={styles.searchContainer}
+          onLayout={(event) => {
+            const { x, y, width, height } = event.nativeEvent.layout;
+            setSearchInputPosition({ x, y, width, height });
+          }}
+        >
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for songs, artists"
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            onFocus={() => {
+              setIsSearchFocused(true);
+              loadSearchHistory();
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                setIsSearchFocused(false);
+              }, 300);
+            }}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              style={styles.clearButton} 
+              onPress={() => {
+                setSearchQuery('');
+                setSearchResults([]);
+              }}
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
 
-      {isLoading ? (
-        <ActivityIndicator 
-          size="large" 
-          color="white" 
-          style={styles.loadingIndicator} 
-        />
-      ) : (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchResult}
-          keyExtractor={(item) => item.id}
-          style={styles.resultsList}
-          ListEmptyComponent={
-            searchResults.length === 0 && !isLoading ? (
-              <ThemedText style={styles.noResultsText}>
-                No results found. Try a different search.
-              </ThemedText>
-            ) : null
-          }
-        />
-      )}
-    </LinearGradient>
+        {/* Dropdown Search History */}
+        {renderSearchHistoryDropdown()}
+
+        {/* Category Grid */}
+        {(searchQuery.trim() === '' || searchResults.length === 0) && !isLoading && (
+          <FlatList
+            data={QUICK_SEARCH_CATEGORIES}
+            renderItem={renderCategoryItem}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.categoryRow}
+            style={styles.categoriesContainer}
+          />
+        )}
+
+        {/* Search Results */}
+        {isLoading ? (
+          <ActivityIndicator 
+            size="large" 
+            color="white" 
+            style={styles.loadingIndicator} 
+          />
+        ) : (
+          <FlatList
+            data={searchResults}
+            renderItem={renderSearchResult}
+            keyExtractor={(item) => item.id}
+            style={styles.resultsList}
+            ListEmptyComponent={
+              searchResults.length === 0 && !isLoading && searchQuery.trim() !== '' ? (
+                <ThemedText style={styles.noResultsText}>
+                  No results found for "{searchQuery}"
+                </ThemedText>
+              ) : (
+                <ThemedText style={styles.noResultsText}>
+                  Explore music by selecting a category or searching
+                </ThemedText>
+              )
+            }
+          />
+        )}
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -157,25 +386,63 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   searchContainer: {
+    marginTop: 10,
     flexDirection: 'row',
     paddingHorizontal: 20,
     marginBottom: 20,
+    alignItems: 'center',
+  },
+  clearButton: {
+    marginLeft: 10,
   },
   searchInput: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.1)',
     color: 'white',
-    borderRadius: 10,
+    borderRadius: 15,
     padding: 15,
     fontSize: 16,
     marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  searchButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 10,
-    padding: 15,
+  categoriesContainer: {
+    paddingHorizontal: 10,
+    marginBottom: 15,
+  },
+  categoryRow: {
+    justifyContent: 'space-between',
+  },
+  categoryItem: {
+    width: (width - 40) / 2 - 10,
+    aspectRatio: 1.5,
+    marginBottom: 10,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  categoryImage: {
+    flex: 1,
+    resizeMode: 'cover',
+    justifyContent: 'flex-end',
+  },
+  categoryImageStyle: {
+    borderRadius: 15,
+  },
+  categoryTextOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  categoryText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   resultsList: {
     paddingHorizontal: 20,
@@ -184,6 +451,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   resultThumbnail: {
     width: 60,
@@ -210,7 +485,52 @@ const styles = StyleSheet.create({
   noResultsText: {
     color: 'white',
     textAlign: 'center',
-    marginTop: 20,
+    marginBottom: 100,
     opacity: 0.7,
+  },
+  // Dropdown Search History Styles
+  searchHistoryDropdown: {
+    position: 'absolute',
+    backgroundColor: 'rgba(29, 43, 58, 0.95)',
+    borderRadius: 15,
+    zIndex: 1000,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  searchHistoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  searchHistoryTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  clearHistoryText: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  historyDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  historyDropdownItemText: {
+    color: 'white',
+    flex: 1,
+    marginLeft: 10,
+  },
+  removeHistoryItemButton: {
+    marginLeft: 10,
   },
 });

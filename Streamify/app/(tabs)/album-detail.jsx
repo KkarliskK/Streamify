@@ -13,7 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLibrary } from '@/src/utils/LibraryContext';
 import MusicPlayerService from '@/src/utils/soundcloudMusicPlayerService';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export default function AlbumDetailScreen() {
   const navigation = useNavigation();
@@ -61,7 +60,14 @@ export default function AlbumDetailScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => removeSongFromAlbum(album.id, songId),
+          onPress: () => {
+            // Update the local state instantly
+            const updatedSongs = album.songs.filter((song) => song.id !== songId);
+            album.songs = updatedSongs; // Update the album object directly
+
+            // Call the context function to persist the change
+            removeSongFromAlbum(album.id, songId);
+          },
         },
       ]
     );
@@ -69,84 +75,84 @@ export default function AlbumDetailScreen() {
 
   return (
     <LinearGradient
-    colors={['#1D2B3A', '#0F1624']}
-    style={styles.container}
-  >
-    <TouchableOpacity 
-      style={styles.backButton} 
-      onPress={() => navigation.navigate('library')}
+      colors={['#1D2B3A', '#0F1624']}
+      style={styles.container}
     >
-      <Ionicons name="arrow-back" size={24} color="white" />
-    </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => navigation.navigate('library')}
+      >
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
 
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.albumHeader}>
-        <Image 
-          source={
-            album.songs.length > 0 
-              ? { uri: album.songs[0].thumbnail } 
-              : require('@/assets/images/react-logo.png')
-          } 
-          style={styles.albumCover} 
-        />
-        <ThemedText style={styles.albumTitle}>{album.name}</ThemedText>
-        <ThemedText style={styles.albumSubtitle}>
-          {album.songs.length} Tracks
-        </ThemedText>
-      </View>
-
-      {album.songs.map((song) => (
-        <TouchableOpacity 
-          key={song.id} 
-          style={styles.songItem}
-          onPress={() => handlePlayPause(song)}
-        >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.albumHeader}>
           <Image 
-            source={{ uri: song.thumbnail }} 
-            style={styles.songThumbnail} 
-            blurRadius={currentlyPlaying?.id === song.id ? 5 : 0}
+            source={
+              album.songs.length > 0 
+                ? { uri: album.songs[0].thumbnail } 
+                : require('@/assets/images/react-logo.png')
+            } 
+            style={styles.albumCover} 
           />
-          <View style={styles.songTextContainer}>
-            <ThemedText 
-              style={[
-                styles.songTitle, 
-                currentlyPlaying?.id === song.id && styles.playingTitle
-              ]}
-              numberOfLines={1}
-            >
-              {song.title}
-            </ThemedText>
-            <ThemedText style={styles.songArtist} numberOfLines={1}>
-              {song.artist}
-            </ThemedText>
-          </View>
-          <View style={styles.songActions}>
-            <TouchableOpacity 
-              onPress={() => likeSong(song)}
-              style={styles.actionButton}
-            >
-              <Ionicons 
-                name={isLiked(song) ? "heart" : "heart-outline"} 
-                size={24} 
-                color={isLiked(song) ? "red" : "white"} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => handleRemoveSong(song.id)}
-              style={styles.actionButton}
-            >
-              <Ionicons name="trash" size={24} color="red" />
-            </TouchableOpacity>
-            <Ionicons 
-              name={currentlyPlaying?.id === song.id ? "pause" : "play"} 
-              size={24} 
-              color="white" 
+          <ThemedText style={styles.albumTitle}>{album.name}</ThemedText>
+          <ThemedText style={styles.albumSubtitle}>
+            {album.songs.length} Tracks
+          </ThemedText>
+        </View>
+
+        {album.songs.map((song) => (
+          <TouchableOpacity 
+            key={song.id} 
+            style={styles.songItem}
+            onPress={() => handlePlayPause(song)}
+          >
+            <Image 
+              source={{ uri: song.thumbnail }} 
+              style={styles.songThumbnail} 
+              blurRadius={currentlyPlaying?.id === song.id ? 5 : 0}
             />
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </LinearGradient>
+            <View style={styles.songTextContainer}>
+              <ThemedText 
+                style={[
+                  styles.songTitle, 
+                  currentlyPlaying?.id === song.id && styles.playingTitle
+                ]}
+                numberOfLines={1}
+              >
+                {song.title}
+              </ThemedText>
+              <ThemedText style={styles.songArtist} numberOfLines={1}>
+                {song.artist}
+              </ThemedText>
+            </View>
+            <View style={styles.songActions}>
+              <TouchableOpacity 
+                onPress={() => likeSong(song)}
+                style={styles.actionButton}
+              >
+                <Ionicons 
+                  name={isLiked(song) ? "heart" : "heart-outline"} 
+                  size={24} 
+                  color={isLiked(song) ? "red" : "white"} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => handleRemoveSong(song.id)}
+                style={styles.actionButton}
+              >
+                <Ionicons name="trash" size={24} color="red" />
+              </TouchableOpacity>
+              <Ionicons 
+                name={currentlyPlaying?.id === song.id ? "pause" : "play"} 
+                size={24} 
+                color="white" 
+              />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </LinearGradient>
   );
 }
 

@@ -274,7 +274,7 @@ export default function SearchScreen() {
         blurRadius={currentlyPlaying?.id === item.id ? 5 : 0}
       />
       <View style={styles.resultTextContainer}>
-        <ThemedText style={styles.resultTitle} numberOfLines={1}>
+        <ThemedText style={[styles.resultTitle, currentlyPlaying?.id === item.id && styles.playingTitle]} numberOfLines={1}>
           {item.title}
         </ThemedText>
         <ThemedText style={styles.resultArtist} numberOfLines={1}>
@@ -649,5 +649,8 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     color: 'white',
+  },
+  playingTitle: {
+    color: '#4CAF50',
   },
 });

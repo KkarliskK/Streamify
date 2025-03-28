@@ -26,6 +26,7 @@ export default function LibraryScreen() {
     removeAlbum,
     likeSong 
   } = useLibrary();
+  
 
   const [isCreateAlbumModalVisible, setIsCreateAlbumModalVisible] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
@@ -42,7 +43,7 @@ export default function LibraryScreen() {
   };
 
   const renderLikedSongsSection = () => (
-    <View style={styles.sectionContainer}>
+    <View style={[styles.sectionContainer, { marginTop: 60 }]}>
       <View style={styles.sectionHeader}>
         <ThemedText style={styles.sectionTitle}>Liked Songs</ThemedText>
         <ThemedText style={styles.sectionSubtitle}>
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   // Existing styles from the previous library screen...
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 0,
   },
   sectionContainer: {
     marginBottom: 30,

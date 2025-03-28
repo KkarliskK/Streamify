@@ -63,7 +63,6 @@ export default function TabLayout() {
             tabBarStyle: { display: 'none' },
             // Optional: Add a title or other options for the album detail screen
             title: 'Album detail'
-             Details'
           }} 
         />
       </Tabs>

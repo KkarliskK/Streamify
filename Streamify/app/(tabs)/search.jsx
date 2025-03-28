@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useLibrary } from '@/src/utils/LibraryContext';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   TextInput, 
@@ -22,6 +21,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import SoundCloudMusicService from '@/src/utils/soundcloudMusicService';
 import MusicPlayerService from '@/src/utils/soundcloudMusicPlayerService';
+import { useLibrary } from '@/src/utils/LibraryContext';
 
 const QUICK_SEARCH_CATEGORIES = [
   { 
@@ -63,17 +63,26 @@ const QUICK_SEARCH_CATEGORIES = [
 
 const { width } = Dimensions.get('window');
 
+const SEARCH_TYPES = [
+  { id: 'tracks', name: 'Tracks', icon: 'musical-notes' },
+  { id: 'artists', name: 'Artists', icon: 'people' },
+  { id: 'playlists', name: 'Playlists', icon: 'list' }
+];
+
 const SEARCH_HISTORY_KEY = 'MUSIC_SEARCH_HISTORY';
 const MAX_SEARCH_HISTORY = 10;
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [artistResults, setArtistResults] = useState([]);
+  const [playlistResults, setPlaylistResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
   const [searchHistory, setSearchHistory] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchInputPosition, setSearchInputPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [searchType, setSearchType] = useState('tracks');
 
   const { 
     likedSongs, 
@@ -85,6 +94,13 @@ export default function SearchScreen() {
   const [selectedSongForAlbum, setSelectedSongForAlbum] = useState(null);
 
   const isLiked = (song) => likedSongs.some(s => s.id === song.id);
+
+  // Effect to trigger search when search type changes
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      performSearch(searchQuery);
+    }
+  }, [searchType]);
 
   useEffect(() => {
     loadSearchHistory();
@@ -142,20 +158,39 @@ export default function SearchScreen() {
   const performSearch = async (query) => {
     if (query.trim() === '') {
       setSearchResults([]);
+      setArtistResults([]);
+      setPlaylistResults([]);
       return;
     }
     
     setIsLoading(true);
     try {
-      const results = await SoundCloudMusicService.searchSongs(query);
+      // Perform comprehensive search
+      const results = await SoundCloudMusicService.searchAll(query);
       
-      if (results.length === 0) {
-        Alert.alert('No Results', 'No tracks found for your search.');
+      switch(searchType) {
+        case 'tracks':
+          setSearchResults(results.tracks);
+          setArtistResults(results.artists);
+          setPlaylistResults(results.playlists);
+          break;
+        case 'artists':
+          setSearchResults([]);
+          setArtistResults(results.artists);
+          setPlaylistResults([]);
+          break;
+        case 'playlists':
+          setSearchResults([]);
+          setArtistResults([]);
+          setPlaylistResults(results.playlists);
+          break;
+        default:
+          setSearchResults(results.tracks);
+          setArtistResults(results.artists);
+          setPlaylistResults(results.playlists);
       }
       
       await saveSearchToHistory(query);
-      
-      setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
       Alert.alert('Search Error', 'Unable to perform search. Check your connection or try a different query.');
@@ -204,6 +239,7 @@ export default function SearchScreen() {
     }
   };
 
+  // Album Selection Modal
   const renderAlbumSelectionModal = () => (
     <Modal
       animationType="slide"
@@ -241,6 +277,7 @@ export default function SearchScreen() {
     </Modal>
   );
 
+  // Category Item Rendering
   const renderCategoryItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.categoryItem}
@@ -263,6 +300,7 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
+  // Track Result Rendering
   const renderSearchResult = ({ item }) => (
     <TouchableOpacity 
       style={styles.resultItem}
@@ -307,6 +345,50 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
+  // Artist Result Rendering
+  const renderArtistResult = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.resultItem}
+      onPress={() => {
+        // Optional: Navigate to artist details page
+        // navigation.navigate('ArtistDetails', { artistId: item.id });
+      }}
+    >
+      <Image 
+        source={{ uri: item.thumbnail }} 
+        style={styles.resultThumbnail} 
+      />
+      <View style={styles.resultTextContainer}>
+        <ThemedText style={styles.resultTitle} numberOfLines={1}>
+          {item.name}
+        </ThemedText>
+        <ThemedText style={styles.resultArtist} numberOfLines={1}>
+          {item.followers.toLocaleString()} Followers
+          {item.city && item.country ? ` • ${item.city}, ${item.country}` : ''}
+        </ThemedText>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Playlist Result Rendering
+  const renderPlaylistResult = ({ item }) => (
+    <TouchableOpacity style={styles.resultItem}>
+      <Image 
+        source={{ uri: item.thumbnail }} 
+        style={styles.resultThumbnail} 
+      />
+      <View style={styles.resultTextContainer}>
+        <ThemedText style={styles.resultTitle} numberOfLines={1}>
+          {item.title}
+        </ThemedText>
+        <ThemedText style={styles.resultArtist} numberOfLines={1}>
+          {item.creator} • {item.trackCount} Tracks
+        </ThemedText>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Search History Dropdown
   const renderSearchHistoryDropdown = () => {
     if (!isSearchFocused || searchHistory.length === 0) return null;
 
@@ -396,6 +478,8 @@ export default function SearchScreen() {
               onPress={() => {
                 setSearchQuery('');
                 setSearchResults([]);
+                setArtistResults([]);
+                setPlaylistResults([]);
               }}
             >
               <Ionicons name="close" size={24} color="white" />
@@ -403,11 +487,40 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {/* Dropdown Search History */}
         {renderSearchHistoryDropdown()}
 
+        {/* Search Type Selector */}
+        <View style={styles.searchTypeContainer}>
+          {SEARCH_TYPES.map((type) => (
+            <TouchableOpacity
+              key={type.id}
+              style={[
+                styles.searchTypeButton,
+                searchType === type.id && styles.searchTypeButtonActive
+              ]}
+              onPress={() => setSearchType(type.id)}
+            >
+              <Ionicons 
+                name={type.icon} 
+                size={20} 
+                color={searchType === type.id ? 'white' : 'rgba(255,255,255,0.5)'} 
+              />
+              <ThemedText 
+                style={[
+                  styles.searchTypeText,
+                  searchType === type.id && styles.searchTypeTextActive
+                ]}
+              >
+                {type.name}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Category Grid */}
-        {(searchQuery.trim() === '' || searchResults.length === 0) && !isLoading && (
+        {(searchQuery.trim() === '' || 
+          (searchResults.length === 0 && artistResults.length === 0 && playlistResults.length === 0)) && 
+          !isLoading && (
           <FlatList
             data={QUICK_SEARCH_CATEGORIES}
             renderItem={renderCategoryItem}
@@ -427,12 +540,22 @@ export default function SearchScreen() {
           />
         ) : (
           <FlatList
-            data={searchResults}
-            renderItem={renderSearchResult}
+            data={
+              searchType === 'tracks' ? searchResults : 
+              searchType === 'artists' ? artistResults : 
+              playlistResults
+            }
+            renderItem={
+              searchType === 'tracks' ? renderSearchResult : 
+              searchType === 'artists' ? renderArtistResult : 
+              renderPlaylistResult
+            }
             keyExtractor={(item) => item.id}
             style={styles.resultsList}
             ListEmptyComponent={
-              searchResults.length === 0 && !isLoading && searchQuery.trim() !== '' ? (
+              (searchType === 'artists' && artistResults.length === 0) ||
+              (searchType === 'playlists' && playlistResults.length === 0) ||
+              (searchType === 'tracks' && searchResults.length === 0) ? (
                 <ThemedText style={styles.noResultsText}>
                   No results found for "{searchQuery}"
                 </ThemedText>
@@ -447,7 +570,6 @@ export default function SearchScreen() {
       </LinearGradient>
       {renderAlbumSelectionModal()} 
     </KeyboardAvoidingView>
-    
   );
 }
 
@@ -649,5 +771,31 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     color: 'white',
+  },
+  searchTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 20,
+  },
+  searchTypeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  searchTypeButtonActive: {
+    backgroundColor: '#3498db',
+  },
+  searchTypeText: {
+    color: 'rgba(255,255,255,0.5)',
+    marginLeft: 5,
+  },
+  searchTypeTextActive: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });

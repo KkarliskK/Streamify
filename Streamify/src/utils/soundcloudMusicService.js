@@ -38,6 +38,7 @@ class SoundCloudMusicService {
             fullTrackUrl: progressiveTranscoding?.url || null,
             thumbnail: track.artwork_url || track.user?.avatar_url || 'https://via.placeholder.com/150',
             duration: track.duration,
+            url: progressiveTranscoding?.url || null,
             permalink: track.permalink_url
           };
         })

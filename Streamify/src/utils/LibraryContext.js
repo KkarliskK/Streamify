@@ -12,6 +12,7 @@ export const LibraryProvider = ({ children }) => {
     loadLibraryData();
   }, []);
 
+  
   const loadLibraryData = async () => {
     try {
       const storedLikedSongs = await AsyncStorage.getItem('LIKED_SONGS');

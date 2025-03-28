@@ -15,8 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { useLibrary } from '@/src/utils/LibraryContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function LibraryScreen() {
+  const navigation = useNavigation();
   const { 
     likedSongs, 
     albums, 
@@ -82,6 +84,7 @@ export default function LibraryScreen() {
         <TouchableOpacity 
           key={album.id} 
           style={styles.albumItem}
+          onPress={() => navigation.navigate('album-detail', { album })}
         >
           <Image 
             source={
@@ -235,15 +238,18 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   modalContainer: {
-    width: '80%',
+    width: '100%',
     backgroundColor: '#1D2B3A',
     borderRadius: 15,
     padding: 20,
     alignItems: 'center',
+    height: "90%",
+    display: 'flex',
+    justifyContent: 'center',
   },
   modalTitle: {
     color: 'white',

@@ -12,7 +12,7 @@ class SoundCloudMusicService {
         params: {
           q: query,
           client_id: this.clientId,
-          limit: 20,
+          limit: 40,
           kind: 'track',
         }
       });

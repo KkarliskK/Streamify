@@ -13,7 +13,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <LibraryProvider> {/* Wrap the Tabs component */}
+    <LibraryProvider>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
@@ -55,6 +55,16 @@ export default function TabLayout() {
             title: 'Settings',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,
           }}
+        />
+        <Tabs.Screen 
+          name="album-detail"
+          options={{ 
+            headerShown: false,
+            tabBarStyle: { display: 'none' },
+            // Optional: Add a title or other options for the album detail screen
+            title: 'Album detail'
+             Details'
+          }} 
         />
       </Tabs>
     </LibraryProvider>

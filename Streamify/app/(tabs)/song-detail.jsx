@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import SoundCloudMusicService from '@/src/utils/soundcloudMusicService';
 import MusicPlayerService from '@/src/utils/soundcloudMusicPlayerService';
+import { useLibrary } from '@/src/utils/LibraryContext';
 
 const { width } = Dimensions.get('window');
 
@@ -17,15 +18,22 @@ const MusicPlayerScreen = () => {
     fullTrackUrl 
   } = useLocalSearchParams();
 
+  const { 
+    likedSongs, 
+    likeSong, 
+  } = useLibrary();
+
+  const isLiked = (song) => likedSongs.some((s) => s.id === song?.id);
+
   const navigation = useNavigation();
 
   const initialTrack = {
-    id: songId,
-    title: songTitle,
-    artist: songArtist,
-    thumbnail: songThumbnail,
-    fullTrackUrl: fullTrackUrl,
-    duration: 0
+    id: songId || 'unknown', // Fallback to 'unknown' if songId is undefined
+    title: songTitle || 'Unknown Title', // Fallback to 'Unknown Title'
+    artist: songArtist || 'Unknown Artist', // Fallback to 'Unknown Artist'
+    thumbnail: songThumbnail || '', // Fallback to an empty string
+    fullTrackUrl: fullTrackUrl || '', // Fallback to an empty string
+    duration: 0,
   };
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -212,10 +220,14 @@ const MusicPlayerScreen = () => {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.controlButton}
-          onPress={() => {/* Future feature */}}
+          onPress={() => likeSong(currentTrack)}
+          style={styles.actionButton}
         >
-          <Ionicons name="heart" size={24} color="white" />
+          <Ionicons 
+            name={isLiked(currentTrack) ? "heart" : "heart-outline"} 
+            size={24} 
+            color={isLiked(currentTrack) ? "red" : "white"} 
+          />
         </TouchableOpacity>
       </View>
     </View>

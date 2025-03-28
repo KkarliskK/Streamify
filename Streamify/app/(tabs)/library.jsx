@@ -104,7 +104,7 @@ export default function LibraryScreen() {
             </ThemedText>
           </View>
           <TouchableOpacity 
-            onPress={() => removeAlbum(album.id)}
+            onPress={() => handleRemoveAlbum(album.id)}
             style={styles.deleteAlbumButton}
           >
             <Ionicons name="trash" size={20} color="red" />
@@ -150,20 +150,41 @@ export default function LibraryScreen() {
     </Modal>
   );
 
+  const handleRemoveAlbum = (albumId) => {
+    Alert.alert(
+      'Remove Album',
+      'Are you sure you want to remove this album?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            // Call the context function to update the albums state
+            await removeAlbum(albumId);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
-        >
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <LinearGradient
         colors={['#1D2B3A', '#0F1624']}
         style={styles.container}
       >
-      <ScrollView style={styles.contentContainer}>
-        {renderLikedSongsSection()}
-        {renderAlbumsSection()}
-      </ScrollView>
-      {renderCreateAlbumModal()}
+        <ScrollView style={styles.contentContainer}>
+          {renderLikedSongsSection()}
+          {renderAlbumsSection()}
+        </ScrollView>
+        {renderCreateAlbumModal()}
       </LinearGradient>
     </KeyboardAvoidingView>
   );
@@ -173,7 +194,7 @@ const styles = StyleSheet.create({
   // Existing styles from the previous library screen...
   container: {
     flex: 1,
-    paddingTop: 0,
+    paddingBottom: 50,
   },
   sectionContainer: {
     marginBottom: 30,
@@ -240,17 +261,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
-    alignItems: 'center',
   },
   modalContainer: {
-    width: '100%',
-    backgroundColor: '#1D2B3A',
-    borderRadius: 15,
-    padding: 20,
+    backgroundColor: '#273244', // Slightly lighter than background for contrast
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 25,
+    paddingBottom: 40,
     alignItems: 'center',
-    height: "90%",
-    display: 'flex',
-    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
   },
   modalTitle: {
     color: 'white',
